@@ -3,23 +3,22 @@ services:
     nginx:
         image: 'nginx:latest'
         ports:
-            - '80:443'
+            - '80:80'
             #- '${HTTP_PORT:-8001}:81'
             - '${SSL_PORT:-443}:443'
         environment:
-            - SSL_PORT=${SSL_PORT:-443} 
+            - SSL_PORT=${SSL_PORT:-443}
             - APP_SERVICE=laravel.test
             - SERVER_NAME=${SERVER_NAME:-localhost}
         volumes:
             - 'sail-nginx:/etc/nginx/certs'
             - './nginx/templates:/etc/nginx/templates'
             - './vendor/ryoluo/sail-ssl/nginx/generate-ssl-cert.sh:/docker-entrypoint.d/99-generate-ssl-cert.sh'
-            - ./nginx/logs:/var/log/nginx/ 
-            - ./nginx/config:/etc/nginx/conf.d/  
+        depends_on:
+            - ${APP_SERVICE:-laravel.test}
         networks:
             - sail
     laravel.test:
-        mem_limit: 500M
         build:
             context: ./vendor/laravel/sail/runtimes/8.2
             dockerfile: Dockerfile
@@ -30,38 +29,13 @@ services:
             - 'host.docker.internal:host-gateway'
         ports:
             - '81:81'
-            #- '${VITE_PORT:-5173}:${VITE_PORT:-5173}'
-        environment:
-            WWWUSER: '${WWWUSER}'
-            LARAVEL_SAIL: 1
-            XDEBUG_MODE: '${SAIL_XDEBUG_MODE:-off}'
-            XDEBUG_CONFIG: '${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}'
-            TZ: America/Sao_Paulo
-        volumes:
-            - '.:/var/www/html/'
-        networks:
-            - sail
-        depends_on:
-            - mysql
-    laravel.test2:
-        mem_limit: 500M
-        build:
-            context: ./vendor/laravel/sail/runtimes/8.2
-            dockerfile: Dockerfile
-            args:
-                WWWGROUP: '${WWWGROUP}'
-        image: sail-8.2/app
-        extra_hosts:
-            - 'host.docker.internal:host-gateway'
-        ports:
             - '82:82'
-            #- '${VITE_PORT:-5173}:${VITE_PORT:-5173}'
+            - '${VITE_PORT:-5173}:${VITE_PORT:-5173}'
         environment:
             WWWUSER: '${WWWUSER}'
             LARAVEL_SAIL: 1
             XDEBUG_MODE: '${SAIL_XDEBUG_MODE:-off}'
             XDEBUG_CONFIG: '${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}'
-            TZ: America/Sao_Paulo
         volumes:
             - '.:/var/www/html/'
         networks:
