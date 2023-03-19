@@ -4,18 +4,17 @@ services:
         image: 'nginx:latest'
         ports:
             - '80:443'
-            #- '${HTTP_PORT:-8001}:81'
             - '${SSL_PORT:-443}:443'
         environment:
-            - SSL_PORT=${SSL_PORT:-443} 
+            - 'SSL_PORT=${SSL_PORT:-443}'
             - APP_SERVICE=laravel.test
-            - SERVER_NAME=${SERVER_NAME:-localhost}
+            - 'SERVER_NAME=${SERVER_NAME:-localhost}'
         volumes:
             - 'sail-nginx:/etc/nginx/certs'
             - './nginx/templates:/etc/nginx/templates'
             - './vendor/ryoluo/sail-ssl/nginx/generate-ssl-cert.sh:/docker-entrypoint.d/99-generate-ssl-cert.sh'
-            - ./nginx/logs:/var/log/nginx/ 
-            - ./nginx/config:/etc/nginx/conf.d/  
+            - './nginx/logs:/var/log/nginx/'
+            - './nginx/config:/etc/nginx/conf.d/'
         networks:
             - sail
     laravel.test:
@@ -30,7 +29,6 @@ services:
             - 'host.docker.internal:host-gateway'
         ports:
             - '81:81'
-            #- '${VITE_PORT:-5173}:${VITE_PORT:-5173}'
         environment:
             WWWUSER: '${WWWUSER}'
             LARAVEL_SAIL: 1
@@ -43,6 +41,7 @@ services:
             - sail
         depends_on:
             - mysql
+            - redis
     laravel.test2:
         mem_limit: 500M
         build:
@@ -55,7 +54,6 @@ services:
             - 'host.docker.internal:host-gateway'
         ports:
             - '82:82'
-            #- '${VITE_PORT:-5173}:${VITE_PORT:-5173}'
         environment:
             WWWUSER: '${WWWUSER}'
             LARAVEL_SAIL: 1
@@ -68,6 +66,7 @@ services:
             - sail
         depends_on:
             - mysql
+            - redis
     mysql:
         image: 'mysql/mysql-server:8.0'
         ports:
@@ -92,6 +91,22 @@ services:
                 - '-p${DB_PASSWORD}'
             retries: 3
             timeout: 5s
+    redis:
+        image: 'redis:alpine'
+        ports:
+            - '${FORWARD_REDIS_PORT:-6379}:6379'
+        volumes:
+            - 'sail-redis:/data'
+        networks:
+            - sail
+        healthcheck:
+            test:
+                - CMD
+                - redis-cli
+                - ping
+            retries: 3
+            timeout: 5s
+
 networks:
     sail:
         driver: bridge
@@ -99,4 +114,6 @@ volumes:
     sail-nginx:
         driver: local
     sail-mysql:
+        driver: local
+    sail-redis:
         driver: local

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Url;
+use App\Services\UrlCache;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -10,10 +11,12 @@ class UrlController extends Controller
 {
 
     protected $url;
+    protected $urls;
 
     public function __construct(Url $url)
     {
         $this->url = $url;
+        $this->urls = new UrlCache();
     }
 
     /**
@@ -22,9 +25,10 @@ class UrlController extends Controller
      * @return \Illuminate\Http\Response
      */
     public function index()
-    {
-        $urls = $this->url->all();
-        return response()->json($urls, 200);
+    { 
+        // $urls = $this->url->all();
+        
+        return response()->json($this->urls->getAll(), 200);
     }
 
     /**
@@ -32,7 +36,7 @@ class UrlController extends Controller
      *
      * @param  \App\Http\Requests\StoreUrlRequest  $request
      * @return \Illuminate\Http\Response
-     */
+     */ 
     public function store(Request $request)
     {
         $request->validate($this->url->rules());
@@ -42,7 +46,7 @@ class UrlController extends Controller
         $url->hash = Str::random(6);
         $url->target_url = $request->target_url;
         $url->user_id = $request->user()->id;
-        $url->expired_at = date_add(now(),date_interval_create_from_date_string("60 days"));
+        $url->expired_at = date_add(now(),date_interval_create_from_date_string("02 days"));
         
         $url->save();
         //return response()->json('localhost:8000/'.$url->hash, 201);
@@ -58,12 +62,14 @@ class UrlController extends Controller
      */
     public function show($id)
     {
-        $url = $this->url->with('user')->find($id);
+        //$url = $this->url->with('user')->find($id);
+        $url = $this->urls->getById($id);
         if($url === null){
             return response()->json(['erro'=>'O recurso solicitado não existe'], 404);
         }
         
         return response()->json($url, 200);
+        //return response()->json($this->urls->getById($id), 200);
     }
 
     /**
@@ -116,7 +122,11 @@ class UrlController extends Controller
     }
 
     public function redirectToSite($hash){
-        $url = $this->url->find($hash);
+        //$url = $this->url->find($hash);
+        $url = $this->urls->getById($hash);
+        if($url === null){
+            return response()->json(['erro'=>'O recurso solicitado não existe'], 404);
+        }
         return redirect()->away($url->target_url);
     }
 }
