@@ -4,19 +4,24 @@ namespace App\Http\Controllers;
 
 use App\Models\Url;
 use App\Services\UrlCache;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use App\Services\RabbitMQService;
+
 
 class UrlController extends Controller
 {
 
     protected $url;
     protected $urls;
+    private $rabbitMQService;
 
-    public function __construct(Url $url)
+    public function __construct(RabbitMQService $rabbitMQService, Url $url)
     {
         $this->url = $url;
         $this->urls = new UrlCache();
+        $this->rabbitMQService = $rabbitMQService;
     }
 
     /**
@@ -27,6 +32,9 @@ class UrlController extends Controller
     public function index()
     { 
         // $urls = $this->url->all();
+
+        $msgBody = json_encode('Consulta de todas as URLs criadas');
+        $this->rabbitMQService->publishMessage('url_index', $msgBody);
         
         return response()->json($this->urls->getAll(), 200);
     }
@@ -39,18 +47,23 @@ class UrlController extends Controller
      */ 
     public function store(Request $request)
     {
+
         $request->validate($this->url->rules());
 
-        $url = new Url();
-       
-        $url->hash = Str::random(6);
-        $url->target_url = $request->target_url;
-        $url->user_id = $request->user()->id;
-        $url->expired_at = date_add(now(),date_interval_create_from_date_string("02 days"));
-        
-        $url->save();
-        //return response()->json('localhost:8000/'.$url->hash, 201);
-        //return redirect()->away($url->target_url);
+        $user = $request->user();
+
+        $url = new Url([
+            'hash' => Str::random(6),
+            'target_url' => $request->input('target_url'),
+            'user_id' => $user->id,
+            'expired_at' => Carbon::now()->addYear(1)
+        ]);
+
+        $user->urls()->save($url);
+
+        $msgBody = json_encode($url->hash);
+        $this->rabbitMQService->publishMessage('url_store', $msgBody);
+
         return response()->json($url, 201);
     }
 
@@ -67,9 +80,11 @@ class UrlController extends Controller
         if($url === null){
             return response()->json(['erro'=>'O recurso solicitado não existe'], 404);
         }
+
+        $msgBody = json_encode($url->hash);
+        $this->rabbitMQService->publishMessage('url_show', $msgBody);
         
         return response()->json($url, 200);
-        //return response()->json($this->urls->getById($id), 200);
     }
 
     /**
@@ -102,6 +117,10 @@ class UrlController extends Controller
         }
 
         $url->update($request->all());
+
+        $msgBody = json_encode($url);
+        $this->rabbitMQService->publishMessage('url_update', $msgBody);
+
         return response()->json($url, 200);
     }
 
@@ -117,7 +136,12 @@ class UrlController extends Controller
         if($url === null){
             return response()->json(['erro'=>'O recurso solicitado não existe'], 404);
         }
+
         $url->delete();
+
+        $msgBody = json_encode($url);
+        $this->rabbitMQService->publishMessage('url_delete', $msgBody);
+
         return response()->json(['msg' => 'Removido com sucesso'], 200);
     }
 
@@ -127,6 +151,13 @@ class UrlController extends Controller
         if($url === null){
             return response()->json(['erro'=>'O recurso solicitado não existe'], 404);
         }
+
+        $msgBody = json_encode($url);
+        $this->rabbitMQService->publishMessage('url_acess', $msgBody);
+
         return redirect()->away($url->target_url);
     }
+
 }
+
+

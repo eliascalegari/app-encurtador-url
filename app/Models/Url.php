@@ -18,6 +18,7 @@ class Url extends Model
      * @var array
      */
     protected $fillable = [
+        'hash',
         'user_id',
         'target_url',
         'created_at',
